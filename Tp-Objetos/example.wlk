@@ -1,54 +1,52 @@
-class Guerrero {
-const potencialOfensivo = 0
-var experiencia 
-const energiaOriginal = 0
-var energia = energiaOriginal
-const traje = new TrajeComun()
+    class Guerrero {
+    var property potencialOfensivo
+    var property experiencia = 0
+    const property energiaOriginal
+    var property energia = energiaOriginal
+    var property traje = new TrajeComun(porcentajeProteccion = 0)
 
+    // El atacante delega la recepción del daño en el oponente
+    method atacar(unGuerrero) {
+        unGuerrero.recibirAtaque(potencialOfensivo)
+    }
 
-method atacar(_guerrero) {
-    var ataque = (potencialOfensivo * 0.1)
+    // El guerrero atacado calcula el daño real usando su traje y actualiza su energía/experiencia
+    method recibirAtaque(potencialAtacante) {
+        const danioBase = potencialAtacante * 0.1
+        const danioReal = traje.danioSufrido(danioBase)
+        
+        energia = (energia - danioReal).max(0)
+        experiencia += traje.experienciaGanada()
+    }
 
-    if (_guerrero.traje() == new TrajeComun()) {
-        ataque = ataque - _guerrero.traje().resistirAtaque(ataque)
+    // Restaura la energía al valor con el que comenzó
+    method comerSemillaDelErmitano() {
+        energia = energiaOriginal
     }
-    _guerrero.energia(_guerrero.energia() - ataque)
-    //_guerrero.traje().desgaste() += 5
-    
-    if (traje == new TrajeDeEntrenamiento()) {
-        experiencia += traje.multiplicarExp()
-    }
-    else{
-        experiencia += 1
-    }
-    
 }
 
-method comerSemillaDelErmitaño() {
-    energia = energiaOriginal
-}
-}
+    // --- Trajes (Punto 2) ---
 
-//algo sobre hacerlo asi en dos clases me hace ruido porque terminaría repitiendo mucha lógica
-//a partir del punto 2
 class TrajeComun {
-    const defensa = 0
-    var desgaste = 0
+    var property porcentajeProteccion = 0
 
-    method resistirAtaque(ataque) {
-    const ataqueReducido = ataque * (defensa/100)
-    return ataqueReducido
+    method danioSufrido(danioBase) {
+        return danioBase * (1 - porcentajeProteccion / 100)
     }
 
+    method experienciaGanada() {
+        return 1
+    }
 }
 
 class TrajeDeEntrenamiento {
-    const multiplicadorDeXp = 2
-    var desgaste = 0
+    var property multiplicadorExp = 2
 
-    method multiplicarExp(){
-    const experienciaGanada = 1 * multiplicadorDeXp
-    return experienciaGanada
+    method danioSufrido(danioBase) {
+        return danioBase // No disminuye el daño recibido
     }
 
+    method experienciaGanada() {
+        return 1 * multiplicadorExp // Multiplica la experiencia normal
+    }
 }
