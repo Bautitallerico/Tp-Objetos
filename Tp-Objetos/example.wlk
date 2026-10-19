@@ -24,6 +24,10 @@ class Guerrero {
     method comerSemillaDelErmitano() {
         energia = energiaOriginal
     }
+
+    method cantidadDePiezasDelTraje() {
+    return traje.cantidadDePiezas()
+    }
 }
 
 // --- Trajes y Desgaste (Puntos 2 y 3) ---
@@ -40,6 +44,10 @@ class Traje {
     // Indica si el traje alcanzó o superó las 100 unidades de desgaste
     method estaGastado() {
         return desgaste >= 100
+    }
+
+    method cantidadDePiezas() {
+    return 1
     }
 }
 
@@ -59,8 +67,7 @@ class TrajeComun inherits Traje {
 }
 
 class TrajeDeEntrenamiento inherits Traje {
-    var property multiplicadorExp = 2
-
+    
     method danioSufrido(danioBase) {
         return danioBase // No reduce el daño recibido
     }
@@ -69,6 +76,103 @@ class TrajeDeEntrenamiento inherits Traje {
         if (self.estaGastado()) {
         return 1 // Si está gastado, no otorga el beneficio del multiplicador
         }
-        return 1 * multiplicadorExp
+        return configuracionEntrenamiento.multiplicadorExp()
+    }
+}
+object configuracionEntrenamiento {
+    var property multiplicadorExp = 2
+}
+
+class Pieza {
+    const property resistencia
+    var property desgaste = 0
+
+    method usar() {
+        desgaste += 5
+    }
+
+    method estaGastada() {
+        return desgaste >= 20
+    }
+}
+class TrajeModularizado {
+    const property piezas = []
+
+    method piezasUtiles() {
+        return piezas.filter({ pieza => !pieza.estaGastada() })
+    }
+
+    method danioSufrido(danioBase) {
+        return danioBase -
+            self.piezasUtiles().sum({ pieza => pieza.resistencia() })
+    }
+
+    method experienciaGanada() {
+        if (piezas.isEmpty()) {
+            return 0
+        }
+        return self.piezasUtiles().size() / piezas.size()
+    }
+
+    method usar() {
+        piezas.forEach({ pieza => pieza.usar() })
+    }
+
+    method estaGastado() {
+        return piezas.all({ pieza => pieza.estaGastada() })
+    }
+
+    method cantidadDePiezas() {
+        return piezas.size()
+    }
+}
+object powerIsBest {
+    method seleccionar(guerreros) {
+        return guerreros.sortedBy({ primero, segundo =>
+            primero.potencialOfensivo() > segundo.potencialOfensivo()
+        }).take(16)
+    }
+}
+
+object funny {
+    method seleccionar(guerreros) {
+        return guerreros.sortedBy({ primero, segundo =>
+            primero.cantidadDePiezasDelTraje() >
+                segundo.cantidadDePiezasDelTraje()
+        }).take(16)
+    }
+}
+
+object surprise {
+    method seleccionar(guerreros) {
+        const disponibles = []
+        disponibles.addAll(guerreros)
+
+        const seleccionados = []
+
+        16.times({ indice =>
+            const elegido = disponibles.anyOne()
+            seleccionados.add(elegido)
+            disponibles.remove(elegido)
+        })
+
+        return seleccionados
+    }
+}
+
+class Torneo {
+    const property inscriptos = []
+    var property modalidad = powerIsBest
+
+    method participantes() {
+        const candidatos = inscriptos.withoutDuplicates()
+
+        if (candidatos.size() < 16) {
+            throw new Exception(
+                message = "Se necesitan al menos 16 guerreros distintos"
+            )
+        }
+
+        return modalidad.seleccionar(candidatos)
     }
 }

@@ -1,0 +1,210 @@
+import example.*
+
+describe "Trajes modularizados" {
+    test "las piezas utiles reducen el danio recibido" {
+        const traje = new TrajeModularizado(
+            piezas = [
+                new Pieza(resistencia = 1),
+                new Pieza(resistencia = 4)
+            ]
+        )
+
+        assert.equals(5, traje.danioSufrido(10))
+        assert.equals(1, traje.experienciaGanada())
+    }
+
+    test "las piezas gastadas no protegen ni aportan experiencia" {
+        const traje = new TrajeModularizado(
+            piezas = [
+                new Pieza(resistencia = 1, desgaste = 20),
+                new Pieza(resistencia = 4)
+            ]
+        )
+
+        assert.equals(6, traje.danioSufrido(10))
+        assert.equals(0.5, traje.experienciaGanada())
+        assert.notThat(traje.estaGastado())
+    }
+
+    test "al usar una pieza con desgaste 15 llega a estar gastada" {
+        const traje = new TrajeModularizado(
+            piezas = [
+                new Pieza(resistencia = 4, desgaste = 15)
+            ]
+        )
+
+        traje.usar()
+
+        assert.that(traje.estaGastado())
+        assert.equals(10, traje.danioSufrido(10))
+        assert.equals(0, traje.experienciaGanada())
+    }
+}
+describe "Guerreros y trajes" {
+    test "recibir un ataque reduce energia y aumenta experiencia" {
+        const atacante = new Guerrero(
+            potencialOfensivo = 100,
+            energiaOriginal = 100
+        )
+        const defensor = new Guerrero(
+            potencialOfensivo = 50,
+            energiaOriginal = 5000
+        )
+
+        atacante.atacar(defensor)
+
+        assert.equals(4990, defensor.energia())
+        assert.equals(1, defensor.experiencia())
+        assert.equals(5, defensor.traje().desgaste())
+    }
+
+    test "la semilla restaura la energia original" {
+        const guerrero = new Guerrero(
+            potencialOfensivo = 100,
+            energiaOriginal = 5000
+        )
+
+        guerrero.recibirAtaque(100)
+        guerrero.comerSemillaDelErmitano()
+
+        assert.equals(5000, guerrero.energia())
+    }
+
+    test "la energia no queda negativa" {
+        const guerrero = new Guerrero(
+            potencialOfensivo = 100,
+            energiaOriginal = 5
+        )
+
+        guerrero.recibirAtaque(100)
+
+        assert.equals(0, guerrero.energia())
+    }
+
+    test "un traje comun reduce el danio segun su proteccion" {
+        const traje = new TrajeComun(porcentajeProteccion = 30)
+
+        assert.equals(7, traje.danioSufrido(10))
+    }
+
+    test "un traje comun deja de proteger al llegar a 100" {
+        const traje = new TrajeComun(
+            porcentajeProteccion = 30,
+            desgaste = 95
+        )
+
+        assert.equals(7, traje.danioSufrido(10))
+
+        traje.usar()
+
+        assert.that(traje.estaGastado())
+        assert.equals(10, traje.danioSufrido(10))
+    }
+
+    test "el multiplicador es compartido por los trajes de entrenamiento" {
+        const primero = new TrajeDeEntrenamiento()
+        const segundo = new TrajeDeEntrenamiento()
+        const multiplicadorAnterior =
+            configuracionEntrenamiento.multiplicadorExp()
+
+        configuracionEntrenamiento.multiplicadorExp(3)
+
+        assert.equals(3, primero.experienciaGanada())
+        assert.equals(3, segundo.experienciaGanada())
+
+        configuracionEntrenamiento.multiplicadorExp(
+            multiplicadorAnterior
+        )
+    }
+
+    test "el traje de entrenamiento gastado otorga experiencia normal" {
+        const traje = new TrajeDeEntrenamiento(desgaste = 100)
+
+        assert.equals(1, traje.experienciaGanada())
+    }
+}
+// Punto 6
+describe "Torneos" {
+    test "PowerIsBest selecciona los 16 con mayor potencial" { //verifica que se seleccionen los 16 guerreros con mayor potencial ofensivo, dejando afuera al de menor poder
+        const guerreros = (1..17).map({ poder => //crea una lista de 17 guerreros, cada uno con un poder diferente
+            new Guerrero(
+                potencialOfensivo = poder,
+                energiaOriginal = 100
+            )
+        })
+        const torneo = new Torneo(
+            inscriptos = guerreros,
+            modalidad = powerIsBest
+        )
+
+        const seleccionados = torneo.participantes()
+
+        assert.equals(16, seleccionados.size())
+        assert.that(seleccionados.all({ guerrero =>
+            guerrero.potencialOfensivo() > 1
+        }))
+    }
+
+    test "Funny selecciona por cantidad de piezas" { //verifica que se priorice al guerrero cuyo traje tiene más piezas, independientemente de su potencial ofensivo
+        const enterizos = (1..16).map({ indice =>
+            new Guerrero(
+                potencialOfensivo = 100,
+                energiaOriginal = 100
+            )
+        })
+        const modular = new Guerrero(
+            potencialOfensivo = 1,
+            energiaOriginal = 100,
+            traje = new TrajeModularizado(
+                piezas = [
+                    new Pieza(resistencia = 1),
+                    new Pieza(resistencia = 2)
+                ]
+            )
+        )
+        const inscriptos = []
+        inscriptos.addAll(enterizos)
+        inscriptos.add(modular)
+
+        const torneo = new Torneo(
+            inscriptos = inscriptos,
+            modalidad = funny
+        )
+
+        const seleccionados = torneo.participantes()
+
+        assert.equals(16, seleccionados.size())
+        assert.that(seleccionados.contains(modular))
+    }
+
+    test "Surprise selecciona 16 inscriptos sin repetir" { //verifica que se seleccionen 16 guerreros inscriptos sin repetir ninguno
+        const guerreros = (1..20).map({ poder =>
+            new Guerrero(
+                potencialOfensivo = poder,
+                energiaOriginal = 100
+            )
+        })
+        const torneo = new Torneo(
+            inscriptos = guerreros,
+            modalidad = surprise
+        )
+
+        const seleccionados = torneo.participantes()
+
+        assert.equals(16, seleccionados.size())
+        assert.equals(16, seleccionados.withoutDuplicates().size())
+        assert.that(seleccionados.all({ guerrero =>
+            guerreros.contains(guerrero)
+        }))
+    }
+
+    // verifica que los trajes comunes y de entrenamiento cuenten como una pieza para la selección de Funny
+    test "un traje enterizo cuenta como una pieza" {  
+       
+        assert.equals(1, new TrajeComun().cantidadDePiezas())
+        assert.equals(
+            1,
+            new TrajeDeEntrenamiento().cantidadDePiezas()
+        )
+    }
+}
